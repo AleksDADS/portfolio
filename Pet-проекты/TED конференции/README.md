@@ -29,4 +29,4 @@ TED (от англ. technology, education, design — «технологии, о
 #### 4. Популярность выступлений
 Самые популярные выступления в топ-3 странах. Аналих взаимосвязи между популярностью, насыщенностью смехом и аплодисментами.
 ## Результат
-### Презентация - https://public.tableau.com/app/profile/aleksandr.timoshenko/viz/TED2009-2021/Story1?publish=yes
+Презентация - https://public.tableau.com/app/profile/aleksandr.timoshenko/viz/TED2009-2021/Story1?publish=yes
