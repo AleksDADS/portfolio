@@ -37,7 +37,7 @@
 В заказах был товар X, производителя Y.
 
 #### Решение: 
-`sql
+```sql
 SELECT DISTINCT c.client_id,
 
 	last_name,
@@ -57,7 +57,7 @@ WHERE order_date BETWEEN '2018-01-01' AND '2018-01-02'
 	AND item_name = 'X'
  
 	AND item_prod = 'Y
-`
+```
 
 ### Задача 2
 Цель: список заказов от клиентов с именем Иван.
