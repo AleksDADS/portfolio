@@ -93,9 +93,9 @@ SELECT city,
 		WHEN 24 < emp_age AND emp_age <= 34 THEN '25_to_34'
 		WHEN 34 < emp_age AND emp_age <= 44 THEN '35_to_44'
 		WHEN 44 < emp_age AND emp_age <= 54 THEN '45_to_54'
-		ELSE '55_and_older
+		ELSE '55_and_older'
 	END AS age_group,
-	ROUND (COUNT(exp_salary) / COUNT() * 100, 2) stated_salary_percent,
+	ROUND(COUNT(exp_salary)/COUNT()*100, 2) stated_salary_percent,
 	PERCENTILE_DISC(0.1) WITHIN GROUP (ORDER BY exp_salary) percentile_10,
 	PERCENTILE_DISC(0.25) WITHIN GROUP (ORDER BY exp_salary) percentile_25,
 	PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY exp_salary) percentile_50,
