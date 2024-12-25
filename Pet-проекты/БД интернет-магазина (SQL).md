@@ -58,45 +58,27 @@ WHERE order_date BETWEEN '2018-01-01' AND '2018-01-02'
 В заказах не было товара X, но был товар Y.
 
 #### Решение:
-
+```sql
 SELECT DISTINCT order_id
-
 FROM (
-
 		SELECT order_id,
-  
 			sum(order_sum) OVER (PARTITION BY o.client_id) AS total_sum
-   
 		FROM clients
-  
 			JOIN orders o USING(client_id)
-   
 		WHERE order_date BETWEEN '2018-01-01' AND '2018-01-02'
-  
 			AND first_name = 'Иван'
-   
 			AND order_id IN (
-   
 				SELECT order_id
-    
 				FROM items
-    
 				WHERE item_name = 'Y'
-    
 				EXCEPT
-    
 				SELECT order_id
-    
 				FROM items
-    
 				WHERE item_name = 'X'
-    
 			)
-   
 	) AS table_a
- 
 WHERE total_sum >= 10000
-
+```
 
 ### Задача 3
 Цель: список клиентов, не совершающих покупки на протяжении 6 месяцев.
@@ -105,49 +87,29 @@ WHERE total_sum >= 10000
 прошлого года. Данные клиенты из топ-3 регионов по продажам.
 
 #### Решение:
-
+```sql
 SELECT client_id
-
 FROM orders
-
 WHERE order_date NOT BETWEEN '2022-10-18' AND '2023-04-18'
-
 	AND client_id IN (
- 
 		SELECT client_id
-  
 		FROM orders
-  
 		WHERE order_date BETWEEN '2021-10-18' AND '2022-04-18'
-  
 		GROUP BY 1
-  
 		HAVING SUM(order_sum) > (
-  
 				SELECT SUM(order_sum) / COUNT(DISTINCT client_id)
-    
 				FROM orders
-    
 				WHERE order_date BETWEEN '2021-10-18' AND '2022-04-18'
-    
 			)
-   
 	)
- 
 	AND region IN (
- 
 		SELECT region
-  
 		FROM orders
-  
 		GROUP BY 1
-  
 		ORDER BY sum(order_sum) DESC
-  
 		LIMIT 3
-  
 	)
-
+```
 
 ### Задача 4
 Цель: список заказов с условно проблемными доставками.
@@ -156,60 +118,33 @@ WHERE order_date NOT BETWEEN '2022-10-18' AND '2023-04-18'
 текущий месяц от клиентов. Данные клиенты - высокодоходные за все время работы.
 
 #### Решение:
-
+```sql
 SELECT o.order_id
-
 FROM orders o
-
 	JOIN delivery USING(order_id)
- 
 WHERE delivery_date BETWEEN '2023-04-17' AND '2023-04-18'
-
 	AND driver_id IN (
- 
 		SELECT driver_id
-  
 		FROM delivery
-  
 		WHERE delivery_date BETWEEN '2023-04-01' AND '2023-04-18'
-  
 		GROUP BY 1
-  
 		HAVING AVG(rating) < 3
-  
 	)
- 
 	AND client_id IN (
- 
 		SELECT client_id
-  
 		FROM orders
-  
 		GROUP BY 1
-  
 		HAVING CASE
-  
 				WHEN EXTRACT(
-    
 					days
-     
 					FROM (MAX(order_date) - MIN(order_date))
-     
 				) < 30 THEN NULL
-    
 				ELSE SUM(order_sum) /(
-    
 					EXTRACT(
-     
 						days
-      
 						FROM (MAX(order_date) - MIN(order_date))
-      
 					) / 30
-     
 				) > 100000
-    
 			END
-   
 	)
- 
+ ```
