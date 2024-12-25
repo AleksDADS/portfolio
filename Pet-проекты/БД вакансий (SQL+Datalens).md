@@ -95,7 +95,7 @@ SELECT city,
 		WHEN 44 < emp_age AND emp_age <= 54 THEN '45_to_54'
 		ELSE '55_and_older
 	END AS age_group,
-	ROUND(COUNT(exp_salary)/COUNT()*100, 2) stated_salary_percent,
+	ROUND (COUNT(exp_salary) / COUNT() * 100, 2) stated_salary_percent,
 	PERCENTILE_DISC(0.1) WITHIN GROUP (ORDER BY exp_salary) percentile_10,
 	PERCENTILE_DISC(0.25) WITHIN GROUP (ORDER BY exp_salary) percentile_25,
 	PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY exp_salary) percentile_50,
