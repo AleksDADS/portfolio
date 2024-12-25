@@ -1,6 +1,6 @@
 # База данных вакансий по России
 
-**Часть 1\. Написание SQL-запросов**
+## Часть 1. Написание SQL-запросов
 
 В базе есть различные данные о вакансиях и резюме. Пример того, как эти данные устроены, можно посмотреть в excel-файле ([бд\_sql](https://docs.google.com/spreadsheets/d/1AqzBK1bMIsBAAo3qdUQh7i6rh8AWl-TlWW-ackPyN00/edit?usp=sharing)): там есть и описание данных в том числе. Изучите этот файл и на основе таблиц, указанных в примере, напишите 3 sql-запроса, которые «достанут» из этих таблиц нужные срезы данных:
 
@@ -10,14 +10,14 @@
 
 **Запрос №1**
 ```sql
-SELECT DISTINCT DATE\_TRUNC('MONTH', v.creation\_time::TIMESTAMP) year\_month,
-	COUNT(vacancy\_id) vacancy\_amount
+SELECT DISTINCT DATE_TRUNC('MONTH', v.creation_time::TIMESTAMP) year_month,
+	COUNT(vacancy_id) vacancy_amount
 FROM vacancy v
-	JOIN area a ON v.area\_id \= a.area\_id
-WHERE a.country\_name \= 'Россия'
-	AND v.creation\_time::DATE BETWEEN '2020-01-01' AND '2021-12-31'
-	AND v.name \= 'Водитель'
-	AND v.work\_schedule \= 'Гибкий график'
+	JOIN area a ON v.area_id = a.area_id
+WHERE a.country_name = 'Россия'
+	AND v.creation_time::DATE BETWEEN '2020-01-01' AND '2021-12-31'
+	AND v.name = 'Водитель'
+	AND v.work_schedule = 'Гибкий график'
 	AND v.disabled IS FALSE
 GROUP BY 1
 ORDER BY 1
@@ -28,30 +28,30 @@ ORDER BY 1
 **Запрос №2**
 ```sql
 WITH t1 AS (
-	SELECT DISTINCT a.region\_name rn,
-		COUNT(v.vacancy\_id) vct
+	SELECT DISTINCT a.region_name rn,
+		COUNT(v.vacancy_id) vct
 	FROM vacancy v
-		JOIN area a ON v.area\_id \= a.area\_id
-	WHERE CAST(v.creation\_time AS DATE) BETWEEN '2021-01-01' AND '2022-12-31'
+		JOIN area a ON v.area_id = a.area_id
+	WHERE CAST(v.creation_time AS DATE) BETWEEN '2021-01-01' AND '2022-12-31'
 		AND v.disabled IS FALSE
 		AND v.archived IS FALSE
 	GROUP BY 1
 	),
 t2 AS (
-	SELECT DISTINCT a.region\_name rn,
-		COUNT(v.vacancy\_id) vcr
+	SELECT DISTINCT a.region_name rn,
+		COUNT(v.vacancy_id) vcr
 	FROM vacancy v
-		JOIN area a ON v.area\_id \= a.area\_id
-	WHERE CAST(v.creation\_time AS DATE) BETWEEN '2021-01-01' AND '2022-12-31'
+		JOIN area a ON v.area_id = a.area_id
+	WHERE CAST(v.creation_time AS DATE) BETWEEN '2021-01-01' AND '2022-12-31'
 		AND v.disabled IS FALSE
 		AND v.archived IS FALSE
-		AND v.work\_schedule \= 'Удаленная работа'
+		AND v.work_schedule = 'Удаленная работа'
 	GROUP BY 1
 	)
 SELECT t1.rn region,
-	ROUND(t2.vcr / t1.vct \* 100, 2\) remote\_vacancy\_percent
+	ROUND(t2.vcr / t1.vct * 100, 2) remote_vacancy_percent
 FROM t1
-	JOIN t2 ON t1.rn \= t2.rn
+	JOIN t2 ON t1.rn = t2.rn
 ORDER BY 2 DESC
 LIMIT 10
 ```
@@ -73,41 +73,41 @@ LIMIT 10
 **Запрос №3**
 ```sql
 WITH t1 AS (
-	SELECT DISTINCT a.area\_name city,
-		r.resume\_id emp,
-		EXTRACT (YEAR FROM AGE(CURRENT\_DATE(), r.birth\_day::DATE)) emp\_age,
-		ROUND(r.compensation/c.rate) exp\_salary
+	SELECT DISTINCT a.area_name city,
+		r.resume_id emp,
+		EXTRACT (YEAR FROM AGE(CURRENT_DATE(), r.birth_day::DATE)) emp_age,
+		ROUND(r.compensation/c.rate) exp_salary
 	FROM resume r
-		JOIN area a USING(area\_id)
+		JOIN area a USING(area_id)
 		JOIN currency c ON r.currency=c.code
-	WHERE a.area\_name IN ('Москва','Санкт-Петербург')
-		AND 91 \= ANY (r.role\_id\_list)
-		AND r.birth\_day IS NOT NULL
+	WHERE a.area_name IN ('Москва','Санкт-Петербург')
+		AND 91 = ANY (r.role_id_list)
+		AND r.birth_day IS NOT NULL
 		AND r.disabled IS FALSE
-		AND r.is\_finished \= 1
+		AND r.is_finished = 1
 	)
 SELECT city,
 	CASE 
-		WHEN emp\_age \<= 17 THEN '17\_and\_younger'
-		WHEN 17 \< emp\_age AND emp\_age \<= 24 THEN '18\_to\_24'
-		WHEN 24 \< emp\_age AND emp\_age \<= 34 THEN '25\_to\_34'
-		WHEN 34 \< emp\_age AND emp\_age \<= 44 THEN '35\_to\_44'
-		WHEN 44 \< emp\_age AND emp\_age \<= 54 THEN '45\_to\_54'
-		ELSE '55\_and\_older
-	END AS age\_group,
-	ROUND(COUNT(exp\_salary)/COUNT()\*100, 2\) stated\_salary\_percent,
-	PERCENTILE\_DISC(0.1) WITHIN GROUP (ORDER BY exp\_salary) percentile\_10,
-	PERCENTILE\_DISC(0.25) WITHIN GROUP (ORDER BY exp\_salary) percentile\_25,
-	PERCENTILE\_DISC(0.5) WITHIN GROUP (ORDER BY exp\_salary) percentile\_50,
-	PERCENTILE\_DISC(0.75) WITHIN GROUP (ORDER BY exp\_salary) percentile\_75,
-	PERCENTILE\_DISC(0.9) WITHIN GROUP (ORDER BY exp\_salary) percentile\_90
+		WHEN emp_age <= 17 THEN '17_and_younger'
+		WHEN 17 < emp_age AND emp_age <= 24 THEN '18_to_24'
+		WHEN 24 < emp_age AND emp_age <= 34 THEN '25_to_34'
+		WHEN 34 < emp_age AND emp_age <= 44 THEN '35_to_44'
+		WHEN 44 < emp_age AND emp_age <= 54 THEN '45_to_54'
+		ELSE '55_and_older
+	END AS age_group,
+	ROUND(COUNT(exp_salary)/COUNT()*100, 2) stated_salary_percent,
+	PERCENTILE_DISC(0.1) WITHIN GROUP (ORDER BY exp_salary) percentile_10,
+	PERCENTILE_DISC(0.25) WITHIN GROUP (ORDER BY exp_salary) percentile_25,
+	PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY exp_salary) percentile_50,
+	PERCENTILE_DISC(0.75) WITHIN GROUP (ORDER BY exp_salary) percentile_75,
+	PERCENTILE_DISC(0.9) WITHIN GROUP (ORDER BY exp_salary) percentile_90
 FROM t1
 GROUP BY 1, 2
 ORDER BY 1, 2
 ```
  
 
-**Часть 2\. Визуализация данных и выводы**
+## Часть 2. Визуализация данных и выводы
 
 У вас есть набор таблиц (файл [таблицы\_для\_дашборда](https://docs.google.com/spreadsheets/d/194N2boyPof0zvTWf0p57OZwGNOw2tYxuaAWrHEM9RK0/edit?usp=sharing)) с данными о вакансиях и резюме на тему командировок. Сделайте дашборд в любом удобном для Вас BI-сервисе с визуализацией этих данных и выводами. 
 
