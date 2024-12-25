@@ -39,23 +39,14 @@
 #### Решение: 
 ```sql
 SELECT DISTINCT c.client_id,
-
 	last_name,
- 
 	first_name,
- 
 	middle_name
- 
 FROM clients c
-
-	JOIN orders USING(client_id)
- 
-	JOIN items USING(order_id)
- 
+	JOIN orders USING(client_id) 
+	JOIN items USING(order_id) 
 WHERE order_date BETWEEN '2018-01-01' AND '2018-01-02'
-
-	AND item_name = 'X'
- 
+	AND item_name = 'X' 
 	AND item_prod = 'Y
 ```
 
