@@ -13,7 +13,7 @@
 
 ## 2. Проектирование
 #### 2.1 Изучим типы данных в исxодных файлах
-> Подключаемся к Greenplum из Python и выводим типы
+> Подключаемся к Greenplum из Python и выводим типы  
 ```python
 from sqlalchemy import create_engine
 import pandas as pd
@@ -30,7 +30,7 @@ user_payments = pd.read_sql(
 user_payments.info()
 ```
 <img src="images/2025-12-12_08-41-53.png" width="400" height="300">
-> Подключаемся к S3 в YC
+> Подключаемся к S3 в YC  
 ```python
 import boto3
 
