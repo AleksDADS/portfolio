@@ -1,7 +1,7 @@
 # Маркетинговая витрина данных
-**Цель:** посчитать маркетинговые метрики
+**Цель:** рассчитать маркетинговые метрики
 
-**Данные:**  
+**Данные:** Искусственные данные за период с 2025-06-30 по 2025-07-26  
 site_visits - данные о посещении сайта (данные Яндекс Метрики из S3 в YC)  
 - date — дата действия
 - timestamp — временная метка действия
@@ -67,12 +67,12 @@ s3 = boto3.client(
 )
 
 bucket_name = 'yc-metrics-theme'
-object_key  = '2022-06-30-site-visits.csv'
-local_path  = '2022-06-30-site-visits.csv'
+object_key  = '2025-06-30-site-visits.csv'
+local_path  = '2025-06-30-site-visits.csv'
 
 s3.download_file(bucket_name, object_key, local_path)
 
-site_visits = pd.read_csv('2022-06-30-site-visits.csv')
+site_visits = pd.read_csv('2025-06-30-site-visits.csv')
 site_visits.info()
 ```
 
@@ -161,7 +161,8 @@ import os
 # аргументы
 default_args = {
     'owner': 'astmioshenko',
-    'start_date': datetime(2025, 12, 12),
+    'start_date': datetime(2025, 6, 30),
+    'end_date': datetime(2025, 7, 26),
     'max_active_runs': 1,
 }
 
@@ -170,7 +171,6 @@ dag = DAG(
     'site_visits',
     default_args=default_args,
     schedule_interval=timedelta(days=1),
-    catchup=False,
 )
 
 # скачиваем данные из S3 в YC
@@ -180,8 +180,7 @@ def download_object_from_s3(**context):
         service_name='s3',
         endpoint_url='https://storage.yandexcloud.net',
         aws_access_key_id=aws_key_id,
-        aws_secret_access_key=aws_secret_key
-
+        aws_secret_access_key=aws_secret_key,
     )
 
     s3.download_file(Bucket='yc-metrics-theme',
@@ -276,7 +275,8 @@ import os
 # аргументы
 default_args = {
     'owner': 'astimoshenko',
-    'start_date': datetime(2025, 12, 12),
+    'start_date': datetime(2025, 6, 30),
+    'end_date': datetime(2025, 7, 26),
     'max_active_runs': 1,
 }
 
@@ -285,7 +285,6 @@ dag = DAG(
     'user_payments',
     default_args=default_args,
     schedule_interval=timedelta(days=1),
-    catchup=False
 )
 
 # скачиваем данные из GP
@@ -369,7 +368,8 @@ remove_tmp_file= PythonOperator(
 # зависимости
 download_object_from_gp >> load_object_from_gp_to_clickhouse >> etl_inside_clickhouse >> remove_tmp_file
 ```
-
+<img src="images/2025-12-12_14-21-5600.png" width="400" height="300">
+<img src="images/2025-12-12_14-22-3500.png" width="400" height="300">
 #### 3.2 Создадим витрины
 > Создадим слой для витрин и сами таблицы. Будем использовать материализованные представления, чтобы витрины автоматически обновлялись при добавлении новых данных из слоя raw, благодаря особенности ClickHouse
  
@@ -424,7 +424,7 @@ CREATE TABLE IF NOT EXISTS dm.item_payments(
   cnt_uniq_users UInt16,
   cnt_statuses UInt16
 ) ENGINE = SummingMergeTree
-ORDER BY (date, item,status);
+ORDER BY (date, item, status);
 
 -- мат представление
 CREATE MATERIALIZED VIEW IF NOT EXISTS dm.item_payments_mv 
@@ -454,6 +454,11 @@ SELECT
   COUNT(user_client_id) AS cnt_statuses
 FROM raw.user_payments
 GROUP BY date, item, status;
+```
+
+> посмотрим на результат
+```sql
+
 ```
 
 ## 4. Тест?
