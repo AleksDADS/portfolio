@@ -1,9 +1,27 @@
 # Маркетинговая витрина данных
-**Цель:** посчитать маркетинговые метрики.
+**Цель:** посчитать маркетинговые метрики
 
-**Описание:**  
+**Данные:**  
+site_visits - данные о посещении сайта (данные Яндекс Метрики из S3 в YC)  
+- date — дата действия
+- timestamp — временная метка действия
+- user_client_id — id клиента
+- action_type — тип действия
+- placement_type — место на странице сайта, с которым было произведено действие
+- placement_id — id места на странице сайта
+- user_visit_url — полный адрес страницы сайта
+
 user_payments - данные по транзакциям из Greenplum  
-site_visits - информация о поведении пользователей на сайте (данные Яндекс Метрики из S3 в YC)
+- date — дата действия
+- timestamp — временная метка
+- user_client_id — id клиента
+- item — приобретаемый товар
+- price — цена за единицу товара
+- amount — итоговая стоимость за количество позиций с учётом скидки
+- discount — скидка в процентах от изначальной цены товара
+- order_id — id заказа пользователя
+- status — статус оплаты товара
+**Описание:**
 
 **Структура:**
 
@@ -60,8 +78,8 @@ site_visits.info()
 
 <img src="images/2025-12-12_08-42-19.png" width="400" height="300">
 
-#### 2.1 Создаем слои данных в ClickHouse
-> подключаемся к ClickHouse из DBeaver и создаем слои tmp и raw
+#### 2.2 Создаем слои данных и таблицы в ClickHouse
+> подключаемся к ClickHouse из DBeaver и создаем слои tmp(временный) и raw(сырой)  
 
 ```sql
 CREATE DATABASE tmp;
@@ -72,63 +90,59 @@ CREATE DATABASE raw;
 
 ```sql
 CREATE TABLE tmp.site_visits  (
-date              String,
-timestamp         String,
-user_client_id    Int64,
-action_type       String,
-placement_type    String,
-placement_id      Int64,
-user_visit_url    String
+    date String,
+    timestamp String,
+    user_client_id Int64,
+    action_type String,
+    placement_type String,
+    placement_id Int64,
+    user_visit_url String
 ) ENGINE = Log; -- подходит для временного хранения
 
 CREATE TABLE tmp.user_payments (
-date              String,
-timestamp         String,
-user_client_id    Int64,
-item              String,
-price             Int64,
-quantity          Int64,
-amount            Float64,
-discount          Float64,
-order_id          Int64,
-status            String
+    date String,
+    timestamp String,
+    user_client_id Int64,
+    item String,
+    price Int64,
+    quantity Int64,
+    amount Float64,
+    discount Float64,
+    order_id Int64,
+    status String
 ) ENGINE = Log;
 
 CREATE TABLE raw.site_visits (
-date              DateTime,
-timestamp         DateTime,
-user_client_id    Int64,
-action_type       String,
-placement_type    String,
-placement_id      Int64,
-user_visit_url    String,
-insert_time DateTime, -- время вставки
-hash String -- хеш для всех полей
+    date DateTime,
+    timestamp DateTime,
+    user_client_id Int64,
+    action_type String,
+    placement_type String,
+    placement_id Int64,
+    user_visit_url String,
+    insert_time DateTime, -- время вставки
+    hash String -- хеш для всех полей
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(date) -- партиции
 ORDER BY date; -- и ключ сортировки по дате
 
 CREATE TABLE raw.user_payments(
-date              DateTime,
-timestamp         DateTime,
-user_client_id    Int64,
-item              String,
-price             Int64,
-quantity          Int64,
-amount            Float64,
-discount          Float64,
-order_id          Int64,
-status            String,
-insert_time DateTime,
-hash String
+    date DateTime,
+    timestamp DateTime,
+    user_client_id Int64,
+    item String,
+    price Int64,
+    quantity Int64,
+    amount Float64,
+    discount Float64,
+    order_id Int64,
+    status String,
+    insert_time DateTime,
+    hash String
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMM(date)
 ORDER BY date;
 ```
-
-
-
-
 
 ## 3. Разработка
 #### 3.1 Настраиваем ETL в Airflow
@@ -202,15 +216,15 @@ def etl_inside_clickhouse(**context):
         client.command(f"""
       INSERT INTO raw.site_visits 
       SELECT 
-          toDateTime(date) as date,
-          toDateTime(timestamp) as timestamp,
-          user_client_id,
-          action_type,
-          placement_type,
-          placement_id,
-          user_visit_url, 
-          now() as insert_time,
-          cityHash64(*) as hash
+        toDateTime(date) as date,
+        toDateTime(timestamp) as timestamp,
+        user_client_id,
+        action_type,
+        placement_type,
+        placement_id,
+        user_visit_url, 
+        now() as insert_time,
+        cityHash64(*) as hash
       FROM tmp.site_visits 
       WHERE date = '{context["ds"]}'
       """)
@@ -307,19 +321,19 @@ def etl_inside_clickhouse():
     client.command("""
         INSERT INTO raw.user_payments
         SELECT 
-        toDateTime(date) as date,
-        toDateTime(timestamp),
-        user_client_id,
-        item,
-        price,
-        quantity,
-        amount,
-        discount,
-        order_id,
-        status, 
-        now() as insert_time,
-        cityHash64(*) as hash
-        FROM tmp.user_payments
+          toDateTime(date) as date,
+          toDateTime(timestamp),
+          user_client_id,
+          item,
+          price,
+          quantity,
+          amount,
+          discount,
+          order_id,
+          status, 
+          now() as insert_time,
+          cityHash64(*) as hash
+          FROM tmp.user_payments
         """)
         
     client.command("TRUNCATE TABLE tmp.user_payments") # Очистка временной таблицы
@@ -356,6 +370,91 @@ remove_tmp_file= PythonOperator(
 download_object_from_gp >> load_object_from_gp_to_clickhouse >> etl_inside_clickhouse >> remove_tmp_file
 ```
 
+#### 3.2 Создадим витрины
+> Создадим слой для витрин и сами таблицы. Будем использовать материализованные представления, чтобы витрины автоматически обновлялись при добавлении новых данных из слоя raw, благодаря особенности ClickHouse
+ 
+```sql
+CREATE DATABASE dm;
+
+-- витрина по клиентам
+CREATE TABLE IF NOT EXISTS dm.user_visits(
+    date Date,
+    action_type LowCardinality(String),
+    placement_type LowCardinality(String),
+    user_visit_url String,
+    cnt_uniq_users UInt32, -- кол-во уникальных клиентов
+    cnt_actions UInt32 -- кол-во действий
+) ENGINE = SummingMergeTree
+ORDER BY (date, action_type, placement_type, user_visit_url);
+
+-- мат представление
+CREATE MATERIALIZED VIEW IF NOT EXISTS dm.user_visits_mv 
+TO dm.user_visits AS
+SELECT
+  toDate(date) AS date,
+  action_type,
+  placement_type,
+  user_visit_url,
+  COUNT(distinct user_client_id) AS cnt_uniq_users,
+  COUNT(user_client_id) AS cnt_actions
+FROM raw.site_visits
+GROUP BY date, action_type, placement_type, user_visit_url;
+
+-- инициируем вставку имеющихся данных в витрину
+INSERT INTO dm.user_visits 
+SELECT
+  toDate(date) AS date,
+  action_type,
+  placement_type,
+  user_visit_url,
+  COUNT(distinct user_client_id) AS cnt_uniq_users,
+  COUNT(user_client_id) AS cnt_actions
+FROM raw.site_visits
+GROUP BY date, action_type, placement_type, user_visit_url;
+
+
+-- витрина по заказам
+CREATE TABLE IF NOT EXISTS dm.item_payments(
+  date Date,
+  item LowCardinality(String),
+  status LowCardinality(String),
+  total_amount Float32,
+  total_quantity UInt32,
+  total_discount Float32,
+  cnt_uniq_users UInt16,
+  cnt_statuses UInt16
+) ENGINE = SummingMergeTree
+ORDER BY (date, item,status);
+
+-- мат представление
+CREATE MATERIALIZED VIEW IF NOT EXISTS dm.item_payments_mv 
+TO dm.item_payments AS
+SELECT
+  toDate(date) AS date,
+  item,
+  status,
+  SUM(amount) AS total_amount,
+  SUM(quantity) AS total_quantity,
+  SUM(price*quantity) - SUM(amount) AS total_discount,
+  COUNT(distinct user_client_id) AS cnt_uniq_users,
+  COUNT(user_client_id) AS cnt_statuses
+FROM raw.user_payments
+GROUP BY date, item, status;
+
+-- инициируем вставку данных
+INSERT INTO dm.item_payments 
+SELECT
+  toDate(date) AS date,
+  item,
+  status,
+  SUM(amount) AS total_amount,
+  SUM(quantity) AS total_quantity,
+  SUM(price*quantity) - SUM(amount) AS total_discount,
+  COUNT(DISTINCT user_client_id) AS cnt_uniq_users,
+  COUNT(user_client_id) AS cnt_statuses
+FROM raw.user_payments
+GROUP BY date, item, status;
+```
 
 ## 4. Тест?
 
