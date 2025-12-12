@@ -1,9 +1,9 @@
 # Маркетинговая витрина данных
 **Цель:** посчитать маркетинговые метрики.
 
-**Описание:** 
+**Описание:**  
 user_payments - данные по транзакциям из Greenplum  
-site_visits - информация о поведении пользователей на сайте (данные Яндекс Метрики из S3)
+site_visits - информация о поведении пользователей на сайте (данные Яндекс Метрики из S3 в YC)
 
 **Структура:**
 
@@ -22,7 +22,7 @@ from sqlalchemy import create_engine
 import pandas as pd
 
 engine = create_engine(
-    f'postgresql+psycopg2://{user}:{password}@{host}:5432/sample_store'
+    f'postgresql+psycopg2://{gp_user}:{gp_password}@{gp_host}:5432/sample_store'
 )
 
 user_payments = pd.read_sql(
@@ -131,6 +131,231 @@ ORDER BY date;
 
 
 ## 3. Разработка
+#### 3.1 Настраиваем ETL в Airflow
+> создаем DAG для ежедневного скачивания данных из облака в слой tmp, из tmp в raw с преобразованием и обогащением для site_visits
+ 
+```python
+# библиотеки
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+import clickhouse_connect
+from datetime import datetime, timedelta
+import pandas as pd
+import boto3
+import os
+
+# аргументы
+default_args = {
+    'owner': 'astmioshenko',
+    'start_date': datetime(2025, 12, 12),
+    'max_active_runs': 1,
+}
+
+# DAG
+dag = DAG(
+    'site_visits',
+    default_args=default_args,
+    schedule_interval=timedelta(days=1),
+    catchup=False,
+)
+
+# скачиваем данные из S3 в YC
+def download_object_from_s3(**context):
+    session = boto3.session.Session()
+    s3 = session.client(
+        service_name='s3',
+        endpoint_url='https://storage.yandexcloud.net',
+        aws_access_key_id=aws_key_id,
+        aws_secret_access_key=aws_secret_key
+
+    )
+
+    s3.download_file(Bucket='yc-metrics-theme',
+        Key=f'{context["ds"]}-site-visits.csv', 
+        Filename=f'/tmp/{context["ds"]}-site_visits_downloaded_file.csv')
+
+# загружаем данные в tmp
+def load_object_from_s3_to_clickhouse(**context):
+    df = pd.read_csv(f'/tmp/{context["ds"]}-site_visits_downloaded_file.csv')
+
+    client  = clickhouse_connect.get_client(
+        host=host, 
+        port=8443, 
+        user=user, 
+        password=password,
+        verify=False
+        )
+
+    client.insert_df('tmp.site_visits', df)
+
+# перекладываем данные в слой raw
+def etl_inside_clickhouse(**context):
+
+     client  = clickhouse_connect.get_client(
+        host=host, 
+        port=8443, 
+        user=user, 
+        password=password,
+        verify=False
+        )
+        
+        client.command(f"""
+      INSERT INTO raw.site_visits 
+      SELECT 
+          toDateTime(date) as date,
+          toDateTime(timestamp) as timestamp,
+          user_client_id,
+          action_type,
+          placement_type,
+          placement_id,
+          user_visit_url, 
+          now() as insert_time,
+          cityHash64(*) as hash
+      FROM tmp.site_visits 
+      WHERE date = '{context["ds"]}'
+      """)
+
+def remove_tmp_file(**context):
+  os.remove(f'/tmp/{context["ds"]}-site_visits_downloaded_file.csv')
+
+# таски
+download_from_s3 = PythonOperator(
+    task_id="download_from_s3",
+    python_callable=download_object_from_s3,
+    dag=dag,
+)
+
+load_object_from_s3_to_clickhouse = PythonOperator(
+    task_id="load_object_from_s3_to_clickhouse",
+    python_callable=load_object_from_s3_to_clickhouse,
+    dag=dag,
+)
+
+etl_inside_clickhouse= PythonOperator(
+    task_id="etl_inside_clickhouse",
+    python_callable=etl_inside_clickhouse,
+    dag=dag,
+)
+
+remove_tmp_file= PythonOperator(
+    task_id="remove_tmp_file",
+    python_callable=remove_tmp_file,
+    dag=dag,
+)
+
+# зависимости
+download_from_s3 >> load_object_from_s3_to_clickhouse >> etl_inside_clickhouse >> remove_tmp_file
+```
+
+> создаем DAG для ежедневного импорта данных из Greenplum в слой tmp, из tmp в raw с преобразованием и обогащением для user_payments
+
+ ```python
+# библиотеки
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from sqlalchemy import create_engine
+from datetime import datetime, timedelta
+import clickhouse_connect
+import pandas as pd
+import os
+
+# аргументы
+default_args = {
+    'owner': 'astimoshenko',
+    'start_date': datetime(2025, 12, 12),
+    'max_active_runs': 1,
+}
+
+# DAG
+dag = DAG(
+    'user_payments',
+    default_args=default_args,
+    schedule_interval=timedelta(days=1),
+    catchup=False
+)
+
+# скачиваем данные из GP
+def download_object_from_gp(**context):
+    engine = create_engine('postgresql+psycopg2://{gp_user}:{gp_password}@{gp_host}:5432/sample_store')
+    data = pd.read_sql(f"SELECT * FROM sample_store.user_payments WHERE date = '{context['ds']}'", engine)
+    data.to_csv(f'/tmp/{context["ds"]}-user_payments_downloaded_file.csv', index=False)
+
+# загружаем данные в слой tmp
+def load_object_from_gp_to_clickhouse(**context):
+    df = pd.read_csv(f'/tmp/{context["ds"]}-user_payments_downloaded_file.csv')
+
+    client  = clickhouse_connect.get_client(
+        host=host, 
+        port=8443, 
+        user=user, 
+        password=password,
+        verify=False
+        )
+
+    client.insert_df('tmp.user_payments', df)
+
+# перекладываем данные в слой raw
+def etl_inside_clickhouse():
+    client  = clickhouse_connect.get_client(
+        host=host, 
+        port=8443, 
+        user=user, 
+        password=password,
+        verify=False
+        )
+
+    client.command("""
+        INSERT INTO raw.user_payments
+        SELECT 
+        toDateTime(date) as date,
+        toDateTime(timestamp),
+        user_client_id,
+        item,
+        price,
+        quantity,
+        amount,
+        discount,
+        order_id,
+        status, 
+        now() as insert_time,
+        cityHash64(*) as hash
+        FROM tmp.user_payments
+        """)
+        
+    client.command("TRUNCATE TABLE tmp.user_payments") # Очистка временной таблицы
+
+def remove_tmp_file(**context):
+  os.remove(f'/tmp/{context["ds"]}-user_payments_downloaded_file.csv')
+
+# таски
+download_object_from_gp = PythonOperator(
+    task_id="download_object_from_gp",
+    python_callable=download_object_from_gp,
+    dag=dag,
+)
+
+load_object_from_gp_to_clickhouse= PythonOperator(
+    task_id="load_object_from_gp_to_clickhouse",
+    python_callable=load_object_from_gp_to_clickhouse,
+    dag=dag,
+)
+
+etl_inside_clickhouse= PythonOperator(
+    task_id="etl_inside_clickhouse",
+    python_callable=etl_inside_clickhouse,
+    dag=dag,
+)
+
+remove_tmp_file= PythonOperator(
+    task_id="remove_tmp_file",
+    python_callable=remove_tmp_file,
+    dag=dag,
+)
+
+# зависимости
+download_object_from_gp >> load_object_from_gp_to_clickhouse >> etl_inside_clickhouse >> remove_tmp_file
+```
+
 
 ## 4. Тест?
 
