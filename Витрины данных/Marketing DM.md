@@ -473,7 +473,7 @@ GROUP BY date, item, status;
 ## 4. Дашборд
 
 <img src="images/2025-12-15_17-36-49.png">
-[https://datalens.ru/0kky1tuvza0yl]  
+https://datalens.ru/0kky1tuvza0yl
 
 
 
