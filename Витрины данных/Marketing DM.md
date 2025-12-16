@@ -110,7 +110,8 @@ CREATE TABLE tmp.site_visits  (
     placement_type String,
     placement_id Int64,
     user_visit_url String
-) ENGINE = Log; -- подходит для временного хранения
+)
+ENGINE = Log; -- подходит для временного хранения
 
 CREATE TABLE tmp.user_payments (
     date String,
@@ -123,7 +124,8 @@ CREATE TABLE tmp.user_payments (
     discount Float64,
     order_id Int64,
     status String
-) ENGINE = Log;
+)
+ENGINE = Log;
 
 CREATE TABLE raw.site_visits (
     date DateTime,
@@ -135,7 +137,8 @@ CREATE TABLE raw.site_visits (
     user_visit_url String,
     insert_time DateTime, -- время вставки
     hash String -- хеш для всех полей
-) ENGINE = MergeTree()
+)
+ENGINE = MergeTree()
 PARTITION BY toYYYYMM(date) -- партиции
 ORDER BY date; -- и ключ сортировки по дате
 
@@ -152,7 +155,8 @@ CREATE TABLE raw.user_payments(
     status String,
     insert_time DateTime,
     hash String
-) ENGINE = MergeTree()
+)
+ENGINE = MergeTree()
 PARTITION BY toYYYYMM(date)
 ORDER BY date;
 ```
@@ -348,7 +352,7 @@ def etl_inside_clickhouse():
           status, 
           now() as insert_time,
           cityHash64(*) as hash
-          FROM tmp.user_payments
+        FROM tmp.user_payments
         """)
         
     client.command("TRUNCATE TABLE tmp.user_payments") # очищаем таблицу
@@ -402,7 +406,8 @@ CREATE TABLE IF NOT EXISTS dm.user_visits(
     user_visit_url String,
     cnt_uniq_users UInt32, -- кол-во уникальных клиентов
     cnt_actions UInt32 -- кол-во действий
-) ENGINE = SummingMergeTree
+)
+ENGINE = SummingMergeTree
 ORDER BY (date, action_type, placement_type, user_visit_url);
 
 -- мат представление
@@ -441,7 +446,8 @@ CREATE TABLE IF NOT EXISTS dm.item_payments(
   total_discount Float32,
   cnt_uniq_users UInt16,
   cnt_statuses UInt16
-) ENGINE = SummingMergeTree
+)
+ENGINE = SummingMergeTree
 ORDER BY (date, item, status);
 
 -- мат представление
