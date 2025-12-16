@@ -241,6 +241,7 @@ def etl_inside_clickhouse(**context):
       WHERE date = '{context["ds"]}'
       """)
 
+# удаляем временный файл
 def remove_tmp_file(**context):
   os.remove(f'/tmp/{context["ds"]}-site_visits_downloaded_file.csv')
 
@@ -348,8 +349,9 @@ def etl_inside_clickhouse():
           FROM tmp.user_payments
         """)
         
-    client.command("TRUNCATE TABLE tmp.user_payments") # Очистка временной таблицы
+    client.command("TRUNCATE TABLE tmp.user_payments") # очищаем таблицу
 
+# удаляем временный файл
 def remove_tmp_file(**context):
   os.remove(f'/tmp/{context["ds"]}-user_payments_downloaded_file.csv')
 
