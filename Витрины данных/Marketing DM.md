@@ -303,8 +303,10 @@ dag = DAG(
 
 # скачиваем данные из GP
 def download_object_from_gp(**context):
-    engine = create_engine('postgresql+psycopg2://{gp_user}:{gp_password}@{gp_host}:5432/sample_store')
-    data = pd.read_sql(f"SELECT * FROM sample_store.user_payments WHERE date = '{context['ds']}'", engine)
+    engine = create_engine(
+        f'postgresql+psycopg2://{gp_user}:{gp_password}@{gp_host}:5432/sample_store')
+    data = pd.read_sql(
+        f"SELECT * FROM sample_store.user_payments WHERE date = '{context['ds']}'", engine)
     data.to_csv(f'/tmp/{context["ds"]}-user_payments_downloaded_file.csv', index=False)
 
 # загружаем данные в слой tmp
