@@ -92,7 +92,7 @@ site_visits.info()
 <img src="images/2025-12-12_08-42-19.png" width="400" height="300">
 
 #### 2.2 Создаем слои данных и таблицы в ClickHouse
-> подключаемся к ClickHouse из DBeaver и создаем слои tmp(временный) и raw(сырой)  
+> подключаемся к ClickHouse из DBeaver и создаем слои tmp и raw 
 
 ```sql
 CREATE DATABASE tmp;
@@ -389,12 +389,12 @@ download_object_from_gp >> load_object_from_gp_to_clickhouse >> etl_inside_click
 <img src="images/2025-12-12_14-22-3500.png" width="400" height="300">
 
 #### 3.2 Создаем витрины 
-> Создадим слой для витрин и сами таблицы. Будем использовать материализованные представления, чтобы витрины автоматически обновлялись при добавлении новых данных из слоя raw, благодаря особенности ClickHouse
+> Создадим слой для витрин и таблицы. Будем использовать материализованные представления, чтобы таблицы витрины автоматически обновлялись при добавлении новых данных из слоя raw, благодаря особенности ClickHouse
  
 ```sql
 CREATE DATABASE dm;
 
--- витрина по клиентам
+-- таблица по клиентам
 CREATE TABLE IF NOT EXISTS dm.user_visits(
     date Date,
     action_type LowCardinality(String),
@@ -418,7 +418,7 @@ SELECT
 FROM raw.site_visits
 GROUP BY date, action_type, placement_type, user_visit_url;
 
--- инициируем вставку имеющихся данных в витрину
+-- инициируем вставку имеющихся данных
 INSERT INTO dm.user_visits 
 SELECT
   toDate(date) AS date,
@@ -431,7 +431,7 @@ FROM raw.site_visits
 GROUP BY date, action_type, placement_type, user_visit_url;
 
 
--- витрина по заказам
+-- таблица по заказам
 CREATE TABLE IF NOT EXISTS dm.item_payments(
   date Date,
   item LowCardinality(String),
