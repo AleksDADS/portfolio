@@ -245,6 +245,8 @@ def etl_inside_clickhouse(**context):
       WHERE date = '{context["ds"]}'
       """)
 
+    client.command("TRUNCATE TABLE tmp.site_visits")
+
 # удаляем временный файл
 def remove_tmp_file(**context):
   os.remove(f'/tmp/{context["ds"]}-site_visits_downloaded_file.csv')
