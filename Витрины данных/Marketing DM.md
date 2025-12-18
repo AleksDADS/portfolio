@@ -279,6 +279,7 @@ remove_tmp_file= PythonOperator(
 # зависимости
 download_from_s3 >> load_object_from_s3_to_clickhouse >> etl_inside_clickhouse >> remove_tmp_file
 ```
+<img src="images/2025-12-12_14-21-5600.png" width="400" height="300">
 
 > создаем DAG для ежедневного импорта данных из Greenplum в слой tmp, из tmp в raw с преобразованием и обогащением для user_payments
 
@@ -391,7 +392,7 @@ remove_tmp_file= PythonOperator(
 # зависимости
 download_object_from_gp >> load_object_from_gp_to_clickhouse >> etl_inside_clickhouse >> remove_tmp_file
 ```
-<img src="images/2025-12-12_14-21-5600.png" width="400" height="300">
+
 <img src="images/2025-12-12_14-22-3500.png" width="400" height="300">
 
 #### 3.2 Создаем витрины 
@@ -436,8 +437,10 @@ SELECT
   COUNT(user_client_id) AS cnt_actions
 FROM raw.site_visits
 GROUP BY date, action_type, placement_type, user_visit_url;
+```
+<img src="images/2025-12-18_09-39-03.png">
 
-
+```sql
 -- таблица по заказам
 CREATE TABLE IF NOT EXISTS dm.item_payments(
   date Date,
@@ -481,6 +484,7 @@ SELECT
 FROM raw.user_payments
 GROUP BY date, item, status;
 ```
+<img src="images/2025-12-18_09-40-25.png">
 
 ## 4. Дашборд
 > на основе витрины создаем дашборд в DataLens
