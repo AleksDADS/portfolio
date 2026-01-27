@@ -116,7 +116,7 @@ ORDER BY 1, 2
 
 У вас есть набор таблиц (файл [таблицы\_для\_дашборда](https://docs.google.com/spreadsheets/d/194N2boyPof0zvTWf0p57OZwGNOw2tYxuaAWrHEM9RK0/edit?usp=sharing)) с данными о вакансиях и резюме на тему командировок. Сделайте дашборд в любом удобном для Вас BI-сервисе с визуализацией этих данных и выводами. 
 
-Ссылка на дашборд - [https://datalens.yandex.cloud/k50a0imujure7](https://datalens.yandex.cloud/k50a0imujure7)
+Ссылка на дашборд - https://datalens.yandex/k50a0imujure7
 
 **Выводы:**
 
